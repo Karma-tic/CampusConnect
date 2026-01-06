@@ -2,16 +2,21 @@
 const functions = require("firebase-functions");
 const PDFDocument = require("pdfkit");
 const cors = require('cors')({ origin: true }); // Used for the V1 onRequest function
-
-// --- Standard V2 Modular Imports for callable function and secrets ---
-// NOTE: These are the standard paths for firebase-functions@4.x.x+
-const { onCall } = require('firebase-functions/v2/https'); 
+require("dotenv").config();
+const { onCall, onRequest } = require('firebase-functions/v2/https'); 
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
 // Remove: const { defineSecret } = require('firebase-functions/v2/secrets'); 
 const { GoogleGenAI } = require('@google/genai');
+
 
 // Use environment variable instead of defineSecret
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 // --- KARMAI (V2 CALLABLE FUNCTION) ---
 
 exports.generateKarmAIPlan = onCall({
@@ -81,8 +86,23 @@ exports.generateKarmAIPlan = onCall({
         throw new functions.https.HttpsError('internal', 'AI Model failed to generate a response.');
     }
 });
+exports.createRazorpayOrder = onRequest({ cors: true }, async (req, res) => {
+    // Note: V2 onRequest handles CORS automatically with {cors: true}
+    try {
+        const options = {
+            amount: 4900, // ₹49.00 (Amount in paise)
+            currency: "INR",
+            receipt: "receipt_" + Date.now(),
+        };
+        const order = await razorpay.orders.create(options);
+        res.json(order);
+    } catch (error) {
+        console.error("Razorpay Order Error:", error);
+        res.status(500).send(error);
+    }
+});
 
-// --- RESUME GENERATOR (V1 HTTP REQUEST FUNCTION - Kept as V1 since it's working) ---
+// --- RESUME GENERATOR (V1 HTTP REQUEST FUNCTION) ---
 
 exports.generateResumePdf = functions.https.onRequest(async (req, res) => {
     // Handle the CORS preflight request (necessary for V1 onRequest)
@@ -100,7 +120,31 @@ exports.generateResumePdf = functions.https.onRequest(async (req, res) => {
         }
 
         try {
-            const formData = req.body;
+            // --- NEW: EXTRACT DATA AND PAYMENT PROOF ---
+            const { formData, paymentData } = req.body;
+            
+            // --- NEW: VERIFY PAYMENT SIGNATURE ---
+            let isPremium = false;
+
+            if (paymentData && paymentData.paymentId && paymentData.signature) {
+                const { orderId, paymentId, signature } = paymentData;
+                
+                const body = orderId + "|" + paymentId;
+                
+                const expectedSignature = crypto
+                  .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+                  .update(body.toString())
+                  .digest("hex");
+        
+                if (expectedSignature === signature) {
+                  console.log("Payment Verified! Removing watermark.");
+                  isPremium = true;
+                } else {
+                  console.log("Payment Fraud Detected! Keeping watermark.");
+                }
+            }
+            // ----------------------------------------
+
             const doc = new PDFDocument();
             let buffers = [];
             doc.on('data', buffers.push.bind(buffers));
@@ -198,13 +242,16 @@ exports.generateResumePdf = functions.https.onRequest(async (req, res) => {
                 });
             }
 
-            // Add Watermark
-            doc.opacity(0.1);
-            doc.fontSize(70).text("CampusConnect", 100, 300, {
-                align: 'center',
-                rotate: -45
-            });
-            doc.opacity(1);
+            // --- NEW: WATERMARK LOGIC (CONDITIONAL) ---
+            if (!isPremium) {
+                doc.opacity(0.1);
+                doc.fontSize(70).text("CampusConnect", 100, 300, {
+                    align: 'center',
+                    rotate: -45
+                });
+                doc.opacity(1);
+            }
+            // ------------------------------------------
 
             doc.end();
 
