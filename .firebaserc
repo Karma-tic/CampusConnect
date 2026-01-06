@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "campusconnectapp-6bfaf",
+    "campusconnect": "campusconnectapp-6bfaf"
+  },
+  "targets": {},
+  "etags": {}
+}

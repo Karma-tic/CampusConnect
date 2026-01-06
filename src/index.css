@@ -1,0 +1,15 @@
+/* Resetting conflicting styles and importing Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* If you still have an 'App.css' file, remove the following conflicting styles 
+  from it or delete the file and put only the Tailwind imports here:
+  
+  #root {
+    max-width: 1280px; 
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+  }
+*/
