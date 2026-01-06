@@ -312,7 +312,7 @@ const ResumeGenerator = () => {
                     <span>Processing...</span>
                   ) : (
                     <>
-                      <span>Remove Watermark (₹49)</span>
+                      <span>Remove Watermark (₹2)</span>
                       <span className="text-xs bg-white text-orange-600 px-2 py-0.5 rounded-full">PRO</span>
                     </>
                   )}
@@ -320,7 +320,7 @@ const ResumeGenerator = () => {
             </div>
             
             <p className="mt-4 text-xs text-gray-400">
-              * The preview generated above contains a watermark. Pay ₹49 to download a professional clean version.
+              * The preview generated above contains a watermark. Pay ₹2 to download a professional clean version.
             </p>
           </div>
         )}

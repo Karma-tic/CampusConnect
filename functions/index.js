@@ -90,7 +90,7 @@ exports.createRazorpayOrder = onRequest({ cors: true }, async (req, res) => {
     // Note: V2 onRequest handles CORS automatically with {cors: true}
     try {
         const options = {
-            amount: 4900, // ₹49.00 (Amount in paise)
+            amount: 200,
             currency: "INR",
             receipt: "receipt_" + Date.now(),
         };

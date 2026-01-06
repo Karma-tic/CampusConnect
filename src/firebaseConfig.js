@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyByrMNnyQ6V0XF4xpMvz-By9igwcib6nBI",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "campusconnectapp-6bfaf.firebaseapp.com",
   projectId: "campusconnectapp-6bfaf",
   storageBucket: "campusconnectapp-6bfaf.firebasestorage.app",
