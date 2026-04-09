@@ -266,4 +266,90 @@ exports.generateResumePdf = functions.https.onRequest(async (req, res) => {
         }
     });
 });
+// ==========================================
+// FEATURE: FORENSIC SKILL ANALYZER
+// ==========================================
+exports.analyzeGitHubProfile = onRequest({ cors: true }, async (req, res) => {
+  try {
+    // 1. Get username from the frontend
+    const username = req.body.username;
+    
+    if (!username) {
+      return res.status(400).json({ error: "Please provide a GitHub username." });
+    }
+
+    // 2. Fetch data from GitHub API (Top 10 recently updated repos)
+    // Note: Node 18+ has fetch built-in!
+    const githubResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=10&sort=updated`, {
+        headers: { "User-Agent": "CampusConnect-App" }
+    });
+
+    if (!githubResponse.ok) {
+      return res.status(404).json({ error: "GitHub user not found or API limit reached." });
+    }
+
+    const repos = await githubResponse.json();
+
+    // 3. Clean the data (Gemini doesn't need 1000 lines of junk JSON, just the highlights)
+    const cleanedData = repos.map(repo => ({
+      name: repo.name,
+      language: repo.language || "Unknown",
+      stars: repo.stargazers_count,
+      description: repo.description || "No description"
+    }));
+
+    // If they have no repos, stop here.
+    if (cleanedData.length === 0) {
+      return res.status(200).json({ 
+        roast: "This user has zero public repositories. There is nothing to analyze. Are they a ghost?", 
+        stats: [] 
+      });
+    }
+
+    // 4. Initialize Gemini (Assuming you have GoogleGenAI imported at the top from the Career Counselor feature)
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    // 5. The "System Prompt" - This is where the magic happens
+    const prompt = `
+      You are a ruthless, highly critical, but ultimately constructive Senior Staff Software Engineer. 
+      Analyze the following GitHub repository data for the user "${username}".
+      
+      Data: ${JSON.stringify(cleanedData)}
+      
+      Format your response strictly in Markdown with these three sections:
+      ### 1. The Brutal Roast
+      (Give them a funny, slightly sarcastic roast about their tech stack, lack of descriptions, or project choices. Be witty, not mean.)
+      
+      ### 2. The True Skill Matrix
+      (Based on the languages and projects, guess their actual skill level. e.g., "Script Kiddie", "Tutorial Hell Trapped", or "Solid Mid-Level".)
+      
+      ### 3. How to Actually Improve
+      (Give 2 highly actionable, technical pieces of advice to make their profile look professional for recruiters.)
+    `;
+
+    // 6. Generate the Roast!
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+    });
+
+    const aiText = response.text;
+
+    // 7. Send it all back to the React Frontend
+    res.status(200).json({ 
+      roast: aiText,
+      stats: cleanedData 
+    });
+
+  } catch (error) {
+    console.error("Analyzer Error:", error);
+    
+    // Check if it's a 503 Overloaded error from Google
+    if (error.status === 503) {
+       return res.status(503).json({ error: "Google's AI is currently overloaded with traffic. Please wait 60 seconds and try again!" });
+    }
+    
+    res.status(500).json({ error: "Something broke in the AI server." });
+  }
+});
 

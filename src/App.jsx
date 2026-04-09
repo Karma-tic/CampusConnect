@@ -23,6 +23,7 @@ import ResumeAnimation from './lottie/resume.json';
 import KarmAIAnimation from './lottie/karm_ai.json';
 import LegitAnimation from './lottie/legit.json';
 import LoadingAnimation from './lottie/Loading.json';
+import SkillAnalyzer from './pages/SkillAnalyzer';
 
 const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
@@ -362,6 +363,7 @@ const App = () => {
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/karm-ai" element={<KarmAI />} />
                     <Route path="/legit" element={<Legit />} />
+                    <Route path="/analyzer" element={<SkillAnalyzer />} />
                 </Routes>
             </main>
             <Footer />
