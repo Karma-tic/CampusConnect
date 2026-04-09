@@ -59,11 +59,24 @@ const NavLink = ({ to, children, isButton = false, onClick }) => (
         ...[1, 2].map(i => ({ title: `Service ${i}`, animation: LoadingAnimation, desc: "Extra feature placeholder.", link: "#" }))
     ];
 
-    const events = [
-        { date: "WED, 10-12 DEC", title: "70th ISTAM Conference", location: "VIT Bhopal", cta: "RSVP" },
-        { date: "WED, 10-12 DEC", title: "Navotkarsh 2025", location: "NITTTR Bhopal", cta: "RSVP" },
-        { date: "MON, 08-12 DEC", title: "Aarohan youth Fest 2025", location: "IHM-Bhopal", cta: "RSVP" },
-    ];
+const events = [
+    { date: "WED-THU, 01-02 APR 2026", title: "Spring Tech Fest & Project Expo", location: "MANIT Bhopal", cta: "RSVP" },
+
+    { date: "SAT, 04 APR 2026", title: "Hackathon 24 – Coding Challenge", location: "SAGE University, Bhopal", cta: "REGISTER" },
+
+    { date: "TUE-WED, 07-08 APR 2026", title: "AI & Robotics Workshop", location: "VIT Bhopal University", cta: "REGISTER" },
+
+    { date: "SAT, 11 APR 2026", title: "Annual Cultural Day & Performances", location: "LNCT University, Bhopal", cta: "JOIN EVENT" },
+
+    { date: "TUE, 14 APR 2026", title: "Dr. B.R. Ambedkar Jayanti Celebration", location: "All Colleges, Bhopal", cta: "JOIN EVENT" },
+
+    { date: "FRI-SAT, 17-18 APR 2026", title: "Startup Pitch & Business Fest", location: "Rabindranath Tagore University, Bhopal", cta: "RSVP" },
+
+    { date: "WED, 22 APR 2026", title: "Earth Day Sustainability Drive", location: "Various Campuses, Bhopal", cta: "JOIN EVENT" },
+
+    { date: "SAT, 25 APR 2026", title: "Farewell Party & DJ Night", location: "Technocrats Institute of Technology, Bhopal", cta: "BOOK NOW" }
+];
+
 
     return (
         <div className="flex flex-col items-center w-full">

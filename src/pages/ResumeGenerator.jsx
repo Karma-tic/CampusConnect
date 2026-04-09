@@ -9,8 +9,6 @@ const auth = getAuth(app);
 // NOTE: Make sure to deploy functions to get the real URL
 const FUNCTION_URL = 'https://generateresumepdf-zpu373bwfa-uc.a.run.app';
 
-// URL 2: For Creating Payment Order
-// Replace the old placeholder with this:
 const ORDER_URL = 'https://us-central1-campusconnectapp-6bfaf.cloudfunctions.net/createRazorpayOrder';
 
 const ResumeGenerator = () => {
