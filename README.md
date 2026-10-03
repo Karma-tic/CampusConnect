@@ -1,148 +1,75 @@
-# 🎓 CampusConnect - Student Ecosystem
+# CampusConnect
 
-![Status](https://img.shields.io/badge/Status-Live-success?style=for-the-badge)
-![Tech](https://img.shields.io/badge/Stack-MERN%20%2B%20Firebase-blue?style=for-the-badge)
-![Payment](https://img.shields.io/badge/Payment-Razorpay-orange?style=for-the-badge)
+A student platform for Indian universities: shared study material, a resume builder with paid PDF export, and AI tools for career planning.
 
-> **A comprehensive platform empowering university students with academic resources, AI-driven career guidance, and professional tools.**
+**Live:** [campusconnect.studio](https://campusconnect.studio)
+**Stack:** React 18 · Vite · Tailwind CSS · Firebase (Auth, Firestore, Storage, Hosting) · Cloud Functions (Node.js 20) · Razorpay · Google Gemini · PDFKit
 
----
+<!-- Add a 60-second demo GIF here: docs/demo.gif -->
 
-## 🚀 Live Demo
-**[🌐 Click Here to Visit CampusConnect](https://campusconnect.studio)**
+## What it does
 
----
+| Feature | How it works |
+| --- | --- |
+| Academic material | Students browse notes and papers by university, course, branch and year. Uploads go to a pending queue and an admin approves them before they are public. |
+| Resume generator | A Cloud Function streams an ATS-friendly PDF with PDFKit. Free downloads carry a watermark; paying ₹49 through Razorpay removes it. |
+| KarmAI career plan | Signed-in students enter education, skills and goals; a callable function asks Gemini 2.5 Flash for a structured learning plan. |
+| Forensic skill analyzer | Fetches a user's 10 most recent public repos, trims them to name, language, stars and description, and asks Gemini for a skills assessment. |
+| Company check | Looks up a company and shows a legitimacy report from a separate Python API (`legit-api`). |
+| Local services | A directory of services near campus (mess, water suppliers and more), with the same submit → admin-approve flow. |
 
-## 🌟 Key Features
+## Architecture
 
-### 📄 Professional Resume Generator (Freemium Model)
-* **Dynamic PDF Creation:** Generates ATS-friendly PDFs on the fly using **Node.js Streams** & `PDFKit`.
-* **Freemium Architecture:** * **Free Tier:** Downloads resume with a "CampusConnect" watermark.
-    * **Premium Tier:** Integrated **Razorpay Payment Gateway** (₹49) to unlock watermark-free downloads.
-* **Security:** Backend verification of payment signatures (SHA256 HMAC) to prevent frontend tampering.
+```mermaid
+flowchart LR
+  U[React SPA<br/>Firebase Hosting] -->|sign in| AUTH[(Firebase Auth)]
+  U -->|read approved items| FS[(Firestore)]
+  U -->|upload notes| ST[(Cloud Storage)]
+  U -->|submit| P[(pending collections)]
+  ADM[Admin page] -->|approve| P --> FS
 
-### 🤖 KarmAI - AI Career Counselor
-* **Powered by Google Gemini:** An advanced AI agent that analyzes student profiles (Skills, Goals, Education).
-* **Actionable Plans:** Generates a structured **3-Step 12-Month Action Plan** for career growth.
-* **Secure & Scalable:** Uses Firebase Callable Functions to handle API keys securely on the server side.
+  U -->|POST createRazorpayOrder| F1[Cloud Function]
+  F1 -->|create order| RP[Razorpay]
+  U -->|Razorpay Checkout| RP
+  U -->|POST generateResumePdf<br/>form + payment proof| F2[Cloud Function]
+  F2 -->|HMAC-SHA256 check of order and payment id| F2
+  F2 -->|PDFKit stream| PDF[Resume PDF]
 
-### 📚 Academic Hub
-* **Resource Sharing:** Students can access notes, papers, and books tailored to their university.
-* **Real-time Updates:** Powered by **Firestore Real-time Listeners** for instant data fetching without page reloads.
+  U -->|callable, auth required| F3[generateKarmAIPlan]
+  U -->|POST username| F4[analyzeGitHubProfile]
+  F4 -->|public repos| GH[GitHub API]
+  F3 & F4 -->|prompt| GM[Gemini 2.5 Flash]
+  U -->|company lookup| LG[Legit API, Python]
+```
 
----
+## Decisions worth explaining
 
-## 🛠️ Tech Stack & Architecture
+- **Payment is verified on the server, never trusted from the browser.** The client sends `orderId`, `paymentId` and `signature`; the function recomputes `HMAC-SHA256(orderId|paymentId, key_secret)` and removes the watermark only on a match.
+- **PDFs are streamed, not stored.** PDFKit writes straight into the HTTP response, so there is no file to clean up and no student data kept in storage.
+- **User content is moderated before it is public.** Uploads land in `pendingAcademicMaterials` / `pendingLocalServices`; only the admin page moves them into the public collections.
+- **AI calls stay on the server.** Gemini keys live in Cloud Functions environment config, and the KarmAI function rejects unauthenticated calls.
 
-### **Frontend (Client-Side)**
-* **React.js (Vite):** Chosen for lightning-fast HMR and bundling.
-* **Tailwind CSS:** For a modern, responsive, and glassmorphism-inspired UI.
-* **React Context API:** Manages global state for Authentication (`AuthContext`).
-* **React Hooks:** extensive use of `useState`, `useEffect` (data fetching), and Custom Hooks.
+## Known limitations (next steps)
 
-### **Backend (Serverless)**
-* **Firebase Cloud Functions (Node.js):**
-    * Acts as the **Express.js** equivalent, handling API requests.
-    * **Why Serverless?** Auto-scaling architecture that charges only for usage (Cost-Optimized).
-* **Razorpay API:** Handles secure payment orders and verification.
-* **PDFKit:** Server-side PDF generation engine.
+- A valid payment signature can be reused for more resumes. Fix: store used `paymentId`s in Firestore and reject repeats.
+- Signature comparison should use `crypto.timingSafeEqual`.
+- No automated tests yet; next is function tests with `firebase-functions-test` and the emulator.
+- `analyzeGitHubProfile` has no rate limit; add per-IP limits or require sign-in.
 
-### **Database & Auth**
-* **Cloud Firestore (NoSQL):** Flexible schema design to handle dynamic user data.
-* **Firebase Authentication:** Secure email/password login and session management.
-
----
-
-## 💡 Under the Hood: Technical Highlights
-
-### 1. Payment Security (Razorpay Integration)
-We don't trust the client. The "Remove Watermark" feature uses a **Double-Verification System**:
-1.  **Frontend:** Initiates payment via Razorpay SDK.
-2.  **Backend:** The client sends the `paymentId` and `signature` to the Node.js server.
-3.  **Verification:** The server regenerates the HMAC SHA256 signature using the secret key.
-    * *Match?* → Render Clean PDF.
-    * *No Match?* → Force Watermark.
-
-### 2. Performance Optimization
-* **Streaming Responses:** The Resume Generator streams binary data directly to the client, preventing server memory overflows during high traffic.
-* **Lazy Loading:** React components are lazy-loaded to reduce the initial bundle size (`Suspense`).
-* **V2 Cloud Functions:** Updated to Gen 2 for better concurrency and lower cold starts.
-
----
-
-## 📂 Project Structure
+## Run locally
 
 ```bash
-CampusConnect/
-├── public/              # Static assets (Logos, Robots.txt)
-├── src/
-│   ├── components/      # Reusable UI (Navbar, Footer, Cards)
-│   ├── context/         # AuthContext (Global State)
-│   ├── pages/           # Route Pages (ResumeGenerator, KarmAI)
-│   ├── firebaseConfig.js# Firebase SDK Init
-│   └── main.jsx         # Entry Point
-├── functions/           # Backend Code (The "Server")
-│   ├── index.js         # Main Server Logic (API Endpoints)
-│   └── .env             # Backend Secrets (Razorpay Keys)
-├── dist/                # Production Build
-└── firebase.json        # Hosting & Rewrites Config
-
-
-
-🔧 Installation & Local Setup
-Want to run this locally? Follow these steps:
-
-1. Clone the Repository
-Bash
-
-git clone [https://github.com/Karma-tic/CampusConnect.git](https://github.com/Karma-tic/CampusConnect.git)
-cd CampusConnect
-2. Install Dependencies
-Frontend:
-
-Bash
-
 npm install
-Backend:
+npm run dev                 # front end on http://localhost:5173
 
-Bash
+cd functions && npm install
+# functions/.env (not committed):
+#   RAZORPAY_KEY_ID=...  RAZORPAY_KEY_SECRET=...  GEMINI_API_KEY=...
+npm run serve               # Firebase emulators
+```
 
-cd functions
-npm install
-3. Environment Variables
-Create a .env file in the root directory:
+Deploy: `npm run build && firebase deploy`.
 
-Code snippet
+## Author
 
-VITE_FIREBASE_API_KEY=your_firebase_key
-VITE_RAZORPAY_KEY_ID=your_razorpay_test_key_id
-Create a .env file in the functions directory:
-
-Code snippet
-
-RAZORPAY_KEY_ID=your_razorpay_test_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_secret_key
-GEMINI_API_KEY=your_gemini_api_key
-4. Run Locally
-Bash
-
-# Terminal 1 (Frontend)
-npm run dev
-
-# Terminal 2 (Backend Emulation - Optional)
-firebase emulators:start
-🛡️ Security Measures
-Environment Variables: All API keys and secrets are stored in .env files (not committed to Git).
-
-Firestore Rules: Strict database rules ensure users can only modify their own data.
-
-HTTPS: All data transmission occurs over secure SSL connections.
-
-📬 Contact
-Developer: Sujeet P Singh aka Karmatix
-
-Location: Bhopal, India
-
-LinkedIn: sujeetkarmatix
-
-⭐ Star this repo if you find it useful!
+Sujeet Singh · [LinkedIn](https://www.linkedin.com/in/sujeetkarmatix) · [GitHub](https://github.com/Karma-tic)
